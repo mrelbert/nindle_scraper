@@ -1,5 +1,13 @@
 import puppeteer from 'puppeteer';
 
+interface User {
+  fullName: string;
+  email: string;
+  password: string;
+  token: string;
+  dbId: string;
+}
+
 interface Highlight {
   title: string;
   highlights: string[];
@@ -10,7 +18,15 @@ interface Highlight {
   databaseId?: string;
 }
 
-async function launchCrawler(email: string, password: string, token: string, ): Promise<Highlight[]> {
+interface ClientContent {
+  books: any[] | [{
+    title: string;
+    highlights: string[];
+  }];
+  token: string;
+}
+
+async function launchCrawler(email: string, password: string, token: string ): Promise<Highlight[]> {
   const browser = await puppeteer.launch({headless: false});
   const page = await browser.newPage();
 
@@ -36,6 +52,11 @@ async function launchCrawler(email: string, password: string, token: string, ): 
 
   console.log("Number of books: " + books.length);
   const numBooks: number = books.length;
+
+  let client: ClientContent = {
+    books: [],
+    token: token
+  }
 
   let bookHighlights: Highlight[] = [];
 
@@ -84,18 +105,20 @@ async function launchCrawler(email: string, password: string, token: string, ): 
     }
 
     bookHighlights.push(bookHighlight);
+    client.books.push({title: bookTitle, highlights: highlights})
   }
 
   await browser.close();
 
   return bookHighlights;
+  // return client;
 };
 
-export default async function crawler(users: any) {
-  let responses = [];
+export default async function fetchHighlights(users: User[]) {
+  let clients = [];
   for (const user of users) {
-    const response = await launchCrawler(user.email, user.password, user.token);
-    responses.push(response);
+    const client = await launchCrawler(user.email, user.password, user.token);
+    clients.push(client);
   }
-  return responses[0];
+  return clients[0];
 }

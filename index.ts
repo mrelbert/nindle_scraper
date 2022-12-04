@@ -1,5 +1,5 @@
 import fetch, { Headers } from 'node-fetch';
-import crawler from './crawler.js';
+import fetchHighlights from './crawler.js';
 import postHighlights from './api.js';
 import "dotenv/config.js";
 
@@ -7,11 +7,11 @@ interface User {
   fullName: string;
   email: string;
   password: string;
-  token?: string;
-  dbId?: string;
+  token: string;
+  dbId: string;
 }
 
-async function handleFetch(): Promise<User[]> {
+async function fetchUsers(): Promise<User[]> {
   var myHeaders = new Headers();
   myHeaders.append("Authorization", process.env.ELBERTS_TECH_SECRET as string);
   myHeaders.append("Content-Type", "application/json");
@@ -30,24 +30,23 @@ async function handleFetch(): Promise<User[]> {
     .then(result => {
       return result;
     })
-    .catch(error => console.log('error', error));
+    .catch(error => console.log('error while fetching users:', error));
 
   const usersInfo = result.then(
     (value) => {
 
       if (value !== undefined) {
-        const objects = JSON.parse(value).results;
-        console.log(objects);
+        const clients = JSON.parse(value).results;
         const users: User[] = [];
 
-        for (const object of objects) {
+        for (const client of clients) {
 
           const user: User = {
-            fullName: object.properties.Name.title[0].plain_text,
-            email: object.properties.Email.rich_text[0].plain_text,
-            password: object.properties.Password.rich_text[0].plain_text,
-            token: object.properties.Token.rich_text[0].plain_text,
-            dbId: object.properties.Database.rich_text[0].plain_text
+            fullName: client.properties.Name.title[0].plain_text,
+            email: client.properties.Email.rich_text[0].plain_text,
+            password: client.properties.Password.rich_text[0].plain_text,
+            token: client.properties.Token.rich_text[0].plain_text,
+            dbId: client.properties.Database.rich_text[0].plain_text
           };
 
           users.push(user);
@@ -55,7 +54,7 @@ async function handleFetch(): Promise<User[]> {
 
         return users;
       } else {
-        throw new Error("No value");
+        throw new Error("No users detected");
       }
     }
   );
@@ -65,12 +64,12 @@ async function handleFetch(): Promise<User[]> {
 
 async function main() {
   console.log("Fetching users..");
-  const users = await handleFetch();
+  const users = await fetchUsers();
   console.log("Users fetched!");
 
-  console.log("Launching crawler..");
-  const highlights = await crawler(users);
-  console.log("Crawler launched!");
+  console.log("Launching puppeteer..");
+  const highlights = await fetchHighlights(users);
+  console.log("Highlights fetched!");
 
   // combine users and highlights based on token
   for (const highlight of highlights) {
