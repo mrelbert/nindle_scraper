@@ -23,19 +23,27 @@ interface ClientContent {
     title: string;
     highlights: string[];
   }];
-  token: string;
+  clientInfo: User;
 }
 
-async function launchCrawler(email: string, password: string, token: string ): Promise<Highlight[]> {
+interface User {
+  fullName: string;
+  email: string;
+  password: string;
+  token: string;
+  dbId: string;
+}
+
+async function launchCrawler(user: User): Promise<ClientContent> {
   const browser = await puppeteer.launch({headless: false});
   const page = await browser.newPage();
 
   await page.goto('https://read.amazon.com/notebook');
 
   // type into email field
-  await page.type('#ap_email', email);
+  await page.type('#ap_email', user.email);
   // type into password field
-  await page.type('#ap_password', password);
+  await page.type('#ap_password', user.password);
   // click on login button
   await page.click('#signInSubmit');
   // wait for navigation to home page
@@ -50,15 +58,13 @@ async function launchCrawler(email: string, password: string, token: string ): P
     return books;
   });
 
-  console.log("Number of books: " + books.length);
+  console.log(`Number of books for ${user.fullName}: ` + books.length);
   const numBooks: number = books.length;
 
   let client: ClientContent = {
     books: [],
-    token: token
+    clientInfo: user,
   }
-
-  let bookHighlights: Highlight[] = [];
 
   // iterate through books and click on each one
   for (let i = 0; i < numBooks; i++) {
@@ -98,27 +104,19 @@ async function launchCrawler(email: string, password: string, token: string ): P
       return highlights;
     });
 
-    let bookHighlight: Highlight= {
-      title: bookTitle,
-      highlights: highlights,
-      token: token,
-    }
-
-    bookHighlights.push(bookHighlight);
-    client.books.push({title: bookTitle, highlights: highlights})
+    client.books.push({title: bookTitle, highlights: highlights});
   }
 
   await browser.close();
 
-  return bookHighlights;
-  // return client;
+  return client;
 };
 
 export default async function fetchHighlights(users: User[]) {
   let clients = [];
   for (const user of users) {
-    const client = await launchCrawler(user.email, user.password, user.token);
+    const client = await launchCrawler(user);
     clients.push(client);
   }
-  return clients[0];
+  return clients;
 }

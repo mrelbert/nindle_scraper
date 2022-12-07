@@ -68,26 +68,14 @@ async function main() {
   console.log("Users fetched!");
 
   console.log("Launching puppeteer..");
-  const highlights = await fetchHighlights(users);
-  console.log("Highlights fetched!");
-
-  // combine users and highlights based on token
-  for (const highlight of highlights) {
-    for (const user of users) {
-      if (highlight.token === user.token) {
-        highlight.fullName = user.fullName;
-        highlight.email = user.email;
-        highlight.password = user.password;  
-        highlight.databaseId = user.dbId;
-      }
-    }
-  }
-
-  console.log("Highlights: ", highlights);
+  const clients = await fetchHighlights(users);
+  console.log("Highlights fetched!", clients);
 
   console.log("Posting highlights..");
-  await postHighlights(highlights);
-  console.log("Highlights posted!");
+  for (const client of clients) {
+    postHighlights(client);
+    console.log("Highlights posted for", client.clientInfo.fullName);
+  }
 }
 
 main();

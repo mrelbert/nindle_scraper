@@ -1,82 +1,115 @@
 import fetch, { Headers } from 'node-fetch';
 import "dotenv/config.js";
 
-interface Highlight {
-  title: string;
-  highlights: string[];
+interface User {
+  fullName: string;
+  email: string;
+  password: string;
   token: string;
-  fullName?: string;
-  email?: string;
-  password?: string;
-  databaseId?: string;
+  dbId: string;
 }
 
-function queryTitles(highlights: Highlight[]) {
-  // loop through highlights and store tokens and database id
-  const tokens: Set<{token: string, databaseId: string}> = new Set();
-  for (const highlight of highlights) {
-    const token = highlight.token;
-    const databaseId = highlight.databaseId;
-    tokens.add({"token": token, "databaseId": databaseId as string});
-  }
+interface ClientContent {
+  books: any[] | [{
+    title: string;
+    highlights: string[];
+  }];
+  clientInfo: User;
+}
 
-  // set that would store titles
-  const uniqueTitles: Set<string> = new Set();
+async function queryTitles(client: ClientContent): Promise<Set<{bookTitle: string, bookId: string}>> {
 
   // loop through unique database ids and get titles
-  for (const tokenObj of tokens) {
-    var myHeaders = new Headers();
-    myHeaders.append("Authorization", `${tokenObj.token}`);
-    myHeaders.append("Content-Type", "application/json");
-    myHeaders.append("Notion-Version", "2022-06-28");
-    
-    var raw = "";
-    
-    var requestOptions = {
-      method: 'POST',
-      headers: myHeaders,
-      body: raw,
-    };
-    
-    const response = fetch(`https://api.notion.com/v1/databases/${tokenObj.databaseId}/query`, requestOptions)
-      .then(response => response.text())
-      .then(result => {
-        console.log("Getting list of unique titles")
-        return result;
-      })
-      .catch(error => console.log('error', error));
+  var myHeaders = new Headers();
+  myHeaders.append("Authorization", `${client.clientInfo.token}`);
+  myHeaders.append("Content-Type", "application/json");
+  myHeaders.append("Notion-Version", "2022-06-28");
+  
+  var raw = "";
+  
+  var requestOptions = {
+    method: 'POST',
+    headers: myHeaders,
+    body: raw,
+  };
+  
+  const response = fetch(`https://api.notion.com/v1/databases/${client.clientInfo.dbId}/query`, requestOptions)
+    .then(response => response.text())
+    .then(result => {
+      return result;
+    })
+    .catch(error => console.log('error', error));
 
-    response.then((result) => {
-      if (result !== undefined) {
-        const objects = JSON.parse(result).results;
+  const uniqueTitles = response.then((result) => {
+    // add a set of tuples to store titles and ids
+    const titles = new Set<{bookTitle: string, bookId: string}>();
 
-        for (const object of objects) {
-          uniqueTitles.add(object.properties.Name.title[0].plain_text);
-        }
-        console.log(uniqueTitles);
+    if (result !== undefined) {
+      const response = JSON.parse(result).results;
+      for (const book of response) {
+        titles.add({bookTitle: book.properties.Name.title[0].plain_text, bookId: book.id});
       }
-    });
-  }
+    }
+
+    return titles;
+  });
 
   return uniqueTitles;
 }
 
-async function postPage(highlights: Highlight[], titles: Set<string>): Promise<any> {
-  console.log(highlights);
+async function postPage(client: ClientContent, existingTitles: Set<{bookTitle: string, bookId: string}> ): Promise<any> {
 
-  for (const highlight of highlights) {
-    if (titles.has(highlight.title)) {
-      console.log("Title already exists");
-      continue;
-    } else {
+  for (const book of client.books) {
+    if (existingTitles.has(book.title)) {
+      console.log("Title already exists, appending highlights");
+
       var myHeaders = new Headers();
-      myHeaders.append("Authorization", `${highlight.token}`);
+      myHeaders.append("Authorization", `${client.clientInfo.token}`);
+      myHeaders.append("Content-Type", "application/json");
+      myHeaders.append("Notion-Version", "2022-06-28");
+      
+      var raw = JSON.stringify({
+        "children": [
+          ...book.highlights.map((highlight: string) => {
+            return {
+              "object": "block",
+              "type": "paragraph",
+              "paragraph": {
+                "rich_text": [
+                  {
+                    "type": "text",
+                    "text": {
+                      "content": `${highlight}`
+                    }
+                  }
+                ]
+              }
+            }
+          })
+        ]
+      });
+      
+      var requestOptions = {
+        method: 'PATCH',
+        headers: myHeaders,
+        body: raw,
+      };
+      
+      fetch(`https://api.notion.com/v1/blocks/${client.clientInfo.dbId}/children`, requestOptions)
+        .then(response => response.text())
+        .then(result => console.log(result))
+        .catch(error => console.log('error', error));
+    } else {
+      console.log("New title detected");
+
+      var myHeaders = new Headers();
+      myHeaders.append("Authorization", `${client.clientInfo.token}`);
       myHeaders.append("Content-Type", "application/json");
       myHeaders.append("Notion-Version", "2022-06-28");
       
       var raw = JSON.stringify({
         "parent": {
-          "database_id": `${highlight.databaseId}`
+          "database_id": `${client.clientInfo.dbId}`
         },
         "icon": {
           "emoji": "🔏"
@@ -86,7 +119,7 @@ async function postPage(highlights: Highlight[], titles: Set<string>): Promise<a
             "title": [
               {
                 "text": {
-                  "content": `${highlight.title}`
+                  "content": `${book.title}`
                 }
               }
             ]
@@ -101,14 +134,14 @@ async function postPage(highlights: Highlight[], titles: Set<string>): Promise<a
                 {
                   "type": "text",
                   "text": {
-                    "content": `Highlights from ${highlight.title}`
+                    "content": `Highlights from ${book.title}`
                   }
                 }
               ]
             }
           },
           // loop through highlights and add to page
-          ...highlight.highlights.map(highlight => {
+          ...book.highlights.map((highlight: string) => {
             return {
               "object": "block",
               "type": "paragraph",
@@ -143,10 +176,13 @@ async function postPage(highlights: Highlight[], titles: Set<string>): Promise<a
   }
 };
 
-export default async function postHighlights(highlights: Highlight[]): Promise<any> {
-  // query db and get list of all book titles then return a hashmap [key: title, value: page id]
-  const titles = queryTitles(highlights);
+export default async function postHighlights(client: ClientContent) {
 
-  const response = await postPage(highlights, titles);
-  return response;
+  const existingTitles = await queryTitles(client);
+  console.log(existingTitles);
+  // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set/has
+  // has method returns true if the value exists in the set (have to be same object references)
+
+  const response = await postPage(client, existingTitles);
+  // return response;
 }
