@@ -35,7 +35,7 @@ interface User {
 }
 
 async function launchCrawler(user: User): Promise<ClientContent> {
-  const browser = await puppeteer.launch({headless: false});
+  const browser = await puppeteer.launch({headless: true});
   const page = await browser.newPage();
 
   await page.goto('https://read.amazon.com/notebook');
@@ -90,12 +90,21 @@ async function launchCrawler(user: User): Promise<ClientContent> {
     await page.waitForSelector('#highlight');
     const highlights: string[] = await page.evaluate(() => {
       const highlight = document.querySelectorAll('#highlight');
+      const pages = document.querySelectorAll('#annotationHighlightHeader');
+
+      // map highlight with pages
+      const highlightsWithPages = Array.from(highlight).map((highlight, index) => {
+        return {
+          highlight: highlight,
+          page: pages[index],
+        }
+      });
 
       let highlights: string[] = [];
 
-      highlight.forEach(highlight => {
-        if (typeof highlight.textContent === 'string') {
-          highlights.push(highlight.textContent);
+      highlightsWithPages.forEach(value => {
+        if (typeof value.highlight.textContent === 'string') {
+          highlights.push(value.highlight.textContent + ' ---- ' + value.page.textContent);
         } else {
           throw new Error('Highlight is not a string');
         }

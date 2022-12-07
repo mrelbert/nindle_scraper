@@ -17,7 +17,11 @@ interface ClientContent {
   clientInfo: User;
 }
 
-async function queryTitles(client: ClientContent): Promise<Set<{bookTitle: string, bookId: string}>> {
+interface Props {
+  [key: string]: string;
+}
+
+async function queryTitles(client: ClientContent): Promise<Props> {
 
   // loop through unique database ids and get titles
   var myHeaders = new Headers();
@@ -41,13 +45,16 @@ async function queryTitles(client: ClientContent): Promise<Set<{bookTitle: strin
     .catch(error => console.log('error', error));
 
   const uniqueTitles = response.then((result) => {
-    // add a set of tuples to store titles and ids
-    const titles = new Set<{bookTitle: string, bookId: string}>();
+
+    const titles: Props = {};
 
     if (result !== undefined) {
       const response = JSON.parse(result).results;
       for (const book of response) {
-        titles.add({bookTitle: book.properties.Name.title[0].plain_text, bookId: book.id});
+        // if book is not in titles object, add it
+        if (!titles[book.properties.Name.title[0].text.content]) {
+          titles[book.properties.Name.title[0].text.content] = book.id;
+        }
       }
     }
 
@@ -57,48 +64,99 @@ async function queryTitles(client: ClientContent): Promise<Set<{bookTitle: strin
   return uniqueTitles;
 }
 
-async function postPage(client: ClientContent, existingTitles: Set<{bookTitle: string, bookId: string}> ): Promise<any> {
+async function postPage(client: ClientContent, existingTitles: Props ): Promise<any> {
 
   for (const book of client.books) {
-    if (existingTitles.has(book.title)) {
-      console.log("Title already exists, appending highlights");
+    if (book.title in existingTitles) {
+      console.log("Title already exists - deleting page and re-creating it");
 
       var myHeaders = new Headers();
       myHeaders.append("Authorization", `${client.clientInfo.token}`);
-      myHeaders.append("Content-Type", "application/json");
       myHeaders.append("Notion-Version", "2022-06-28");
       
-      var raw = JSON.stringify({
-        "children": [
-          ...book.highlights.map((highlight: string) => {
-            return {
-              "object": "block",
-              "type": "paragraph",
-              "paragraph": {
-                "rich_text": [
+      var deleteRequestOptions = {
+        method: 'DELETE',
+        headers: myHeaders,
+      };
+      
+      fetch(`https://api.notion.com/v1/blocks/${existingTitles[book.title]}`, deleteRequestOptions)
+        .then(response => response.text())
+        .then(result => {
+          console.log("Now posting...", result);
+          
+          var myHeaders = new Headers();
+          myHeaders.append("Authorization", `${client.clientInfo.token}`);
+          myHeaders.append("Content-Type", "application/json");
+          myHeaders.append("Notion-Version", "2022-06-28");
+          
+          var raw = JSON.stringify({
+            "parent": {
+              "database_id": `${client.clientInfo.dbId}`
+            },
+            "icon": {
+              "emoji": "🔏"
+            },
+            "properties": {
+              "Name": {
+                "title": [
                   {
-                    "type": "text",
                     "text": {
-                      "content": `${highlight}`
+                      "content": `${book.title}`
                     }
                   }
                 ]
               }
-            }
-          })
-        ]
-      });
-      
-      var requestOptions = {
-        method: 'PATCH',
-        headers: myHeaders,
-        body: raw,
-      };
-      
-      fetch(`https://api.notion.com/v1/blocks/${client.clientInfo.dbId}/children`, requestOptions)
-        .then(response => response.text())
-        .then(result => console.log(result))
+            },
+            "children": [
+              {
+                "object": "block",
+                "type": "heading_2",
+                "heading_2": {
+                  "rich_text": [
+                    {
+                      "type": "text",
+                      "text": {
+                        "content": `Highlights from ${book.title}`
+                      }
+                    }
+                  ]
+                }
+              },
+              // loop through highlights and add to page
+              ...book.highlights.map((highlight: string) => {
+                return {
+                  "object": "block",
+                  "type": "paragraph",
+                  "paragraph": {
+                    "rich_text": [
+                      {
+                        "type": "text",
+                        "text": {
+                          "content": `${highlight}`
+                        }
+                      }
+                    ]
+                  }
+                }
+              })
+            ]
+          });
+          
+          var postRequestOptions = {
+            method: 'POST',
+            headers: myHeaders,
+            body: raw,
+          };
+          
+          fetch("https://api.notion.com/v1/pages", postRequestOptions)
+            .then(response => response.text())
+            .then(() => {
+              console.log("Posting highlights to Notion");
+            })
+            .catch(error => console.log('error', error));
+        })
         .catch(error => console.log('error', error));
+
     } else {
       console.log("New title detected");
 
@@ -160,13 +218,13 @@ async function postPage(client: ClientContent, existingTitles: Set<{bookTitle: s
         ]
       });
       
-      var requestOptions = {
+      var postRequestOptions = {
         method: 'POST',
         headers: myHeaders,
         body: raw,
       };
       
-      fetch("https://api.notion.com/v1/pages", requestOptions)
+      fetch("https://api.notion.com/v1/pages", postRequestOptions)
         .then(response => response.text())
         .then(() => {
           console.log("Posting highlights to Notion");
@@ -179,10 +237,5 @@ async function postPage(client: ClientContent, existingTitles: Set<{bookTitle: s
 export default async function postHighlights(client: ClientContent) {
 
   const existingTitles = await queryTitles(client);
-  console.log(existingTitles);
-  // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set/has
-  // has method returns true if the value exists in the set (have to be same object references)
-
-  const response = await postPage(client, existingTitles);
-  // return response;
+  await postPage(client, existingTitles);
 }
