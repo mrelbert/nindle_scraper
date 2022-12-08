@@ -52,8 +52,10 @@ async function queryTitles(client: ClientContent): Promise<Props> {
       const response = JSON.parse(result).results;
       for (const book of response) {
         // if book is not in titles object, add it
-        if (!titles[book.properties.Name.title[0].text.content]) {
-          titles[book.properties.Name.title[0].text.content] = book.id;
+        if (book.properties.Name.title.length > 0) {
+          if (!titles[book.properties.Name.title[0].text.content]) {
+            titles[book.properties.Name.title[0].text.content] = book.id;
+          }
         }
       }
     }
@@ -126,8 +128,8 @@ async function postPage(client: ClientContent, existingTitles: Props ): Promise<
               ...book.highlights.map((highlight: string) => {
                 return {
                   "object": "block",
-                  "type": "paragraph",
-                  "paragraph": {
+                  "type": "quote",
+                  "quote": {
                     "rich_text": [
                       {
                         "type": "text",
@@ -202,8 +204,8 @@ async function postPage(client: ClientContent, existingTitles: Props ): Promise<
           ...book.highlights.map((highlight: string) => {
             return {
               "object": "block",
-              "type": "paragraph",
-              "paragraph": {
+              "type": "quote",
+              "quote": {
                 "rich_text": [
                   {
                     "type": "text",
