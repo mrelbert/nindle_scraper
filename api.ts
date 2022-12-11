@@ -21,7 +21,7 @@ interface Props {
   [key: string]: string;
 }
 
-async function queryTitles(client: ClientContent): Promise<Props> {
+function queryTitles(client: ClientContent): Promise<Props> {
 
   // loop through unique database ids and get titles
   var myHeaders = new Headers();
@@ -66,7 +66,7 @@ async function queryTitles(client: ClientContent): Promise<Props> {
   return uniqueTitles;
 }
 
-async function postPage(client: ClientContent, existingTitles: Props ): Promise<any> {
+function postPage(client: ClientContent, existingTitles: Props ) {
 
   for (const book of client.books) {
     if (book.title in existingTitles) {
@@ -84,8 +84,7 @@ async function postPage(client: ClientContent, existingTitles: Props ): Promise<
       fetch(`https://api.notion.com/v1/blocks/${existingTitles[book.title]}`, deleteRequestOptions)
         .then(response => response.text())
         .then(result => {
-          console.log("Now posting...", result);
-          
+
           var myHeaders = new Headers();
           myHeaders.append("Authorization", `${client.clientInfo.token}`);
           myHeaders.append("Content-Type", "application/json");
@@ -152,8 +151,8 @@ async function postPage(client: ClientContent, existingTitles: Props ): Promise<
           
           fetch("https://api.notion.com/v1/pages", postRequestOptions)
             .then(response => response.text())
-            .then(() => {
-              console.log("Posting highlights to Notion");
+            .then((value) => {
+              return value;
             })
             .catch(error => console.log('error', error));
         })
@@ -228,8 +227,8 @@ async function postPage(client: ClientContent, existingTitles: Props ): Promise<
       
       fetch("https://api.notion.com/v1/pages", postRequestOptions)
         .then(response => response.text())
-        .then(() => {
-          console.log("Posting highlights to Notion");
+        .then((value) => {
+          return value;
         })
         .catch(error => console.log('error', error));
     }
@@ -238,6 +237,8 @@ async function postPage(client: ClientContent, existingTitles: Props ): Promise<
 
 export default async function postHighlights(client: ClientContent) {
 
-  const existingTitles = await queryTitles(client);
-  await postPage(client, existingTitles);
+  const queryResponse = queryTitles(client);
+
+  const existingTitles = await queryResponse;
+  postPage(client, existingTitles);
 }

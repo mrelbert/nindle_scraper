@@ -74,8 +74,11 @@ async function main() {
   console.log("Posting highlights..");
   for (const client of clients) {
     postHighlights(client);
-    console.log("Highlights posted for", client.clientInfo.fullName);
+    console.log("Posted highlights for " + client.clientInfo.fullName + " to Notion!")
   }
+  console.log("Process complete!")
+
+  process.exit(0);
 }
 
 main();
