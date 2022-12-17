@@ -1,23 +1,5 @@
 import puppeteer from 'puppeteer';
 
-interface User {
-  fullName: string;
-  email: string;
-  password: string;
-  token: string;
-  dbId: string;
-}
-
-interface Highlight {
-  title: string;
-  highlights: string[];
-  token: string;
-  fullName?: string;
-  email?: string;
-  password?: string;
-  databaseId?: string;
-}
-
 interface ClientContent {
   books: any[] | [{
     title: string;
@@ -50,7 +32,7 @@ async function launchCrawler(user: User): Promise<ClientContent> {
   await page.waitForNavigation();
 
   // wait for books to load
-  await page.waitForSelector('#kp-notebook-library');
+  await page.waitForSelector('#library-section');
 
   const books = await page.evaluate(() => {
     const library = document.querySelector('#kp-notebook-library');
