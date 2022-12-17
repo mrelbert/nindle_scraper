@@ -6,7 +6,7 @@ name: First Cron Job
 on:
   # Triggers the workflow every 5 minutes
   schedule:
-    - cron: "0 0,12 * * *"
+    - cron: "*/10 * * * *"
     
 env:
   ELBERTS_TECH_SECRET: ${{ secrets.ELBERTS_TECH_SECRET }}
