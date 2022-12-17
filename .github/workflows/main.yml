@@ -6,7 +6,7 @@ name: First Cron Job
 on:
   # Triggers the workflow every 5 minutes
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "0 0,12 * * *"
     
 env:
   ELBERTS_TECH_SECRET: ${{ secrets.ELBERTS_TECH_SECRET }}
@@ -20,6 +20,8 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: npm run start
+      - run: node --version
+      - run: npm --version
+      - uses: actions/checkout@v3
+      - run: npm install
+      - run: npm run start
