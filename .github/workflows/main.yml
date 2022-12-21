@@ -1,10 +1,7 @@
-   # This is a basic workflow to help you get started with Actions
+name: Nindle Scraper
 
-name: First Cron Job
-
-       # Controls when the workflow will run
 on:
-  # Triggers the workflow every 5 minutes
+  # Triggers the workflow every two days
   schedule:
     - cron: "0 0,12 * * *"
     
