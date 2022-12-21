@@ -98,7 +98,7 @@ async function launchCrawler(user: User): Promise<ClientContent> {
     client.books.push({title: bookTitle, highlights: highlights});
   }
 
-  // await browser.close();
+  await browser.close();
 
   return client;
 };

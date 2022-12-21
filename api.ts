@@ -70,7 +70,7 @@ function postPage(client: ClientContent, existingTitles: Props ) {
 
   for (const book of client.books) {
     if (book.title in existingTitles) {
-      console.log("Title already exists - deleting page and re-creating it");
+      console.log("Title already exists", book.title);
 
       var myHeaders = new Headers();
       myHeaders.append("Authorization", `${client.clientInfo.token}`);
@@ -159,7 +159,7 @@ function postPage(client: ClientContent, existingTitles: Props ) {
         .catch(error => console.log('error', error));
 
     } else {
-      console.log("New title detected");
+      console.log("New title detected", book.title);
 
       var myHeaders = new Headers();
       myHeaders.append("Authorization", `${client.clientInfo.token}`);
@@ -240,5 +240,9 @@ export default async function postHighlights(client: ClientContent) {
   const queryResponse = queryTitles(client);
 
   const existingTitles = await queryResponse;
+
+  console.log("Existing titles:", existingTitles);
+
   postPage(client, existingTitles);
+  console.log("--------------------");
 }

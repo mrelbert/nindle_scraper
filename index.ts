@@ -76,9 +76,6 @@ async function main() {
     postHighlights(client);
     console.log("Posted highlights for " + client.clientInfo.fullName + " to Notion!")
   }
-  console.log("Process complete!")
-
-  process.exit(0);
 }
 
 main();
