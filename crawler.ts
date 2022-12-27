@@ -32,7 +32,7 @@ async function launchCrawler(user: User): Promise<ClientContent> {
   await page.waitForNavigation();
 
   // wait for books to load
-  await page.waitForSelector('#library-section');
+  // await page.waitForSelector('#library-section');
 
   const books = await page.evaluate(() => {
     const library = document.querySelector('#kp-notebook-library');
